@@ -1,0 +1,25 @@
+TITL=Last Week's Results - Game 1
+MSG2=Santa Clara First Baptist
+MSG3=Mount Olive #2
+TIME=7
+
+TITL=Last Week's Results - Game 2
+MSG2=First Presbyterian Church of Milpitas
+MSG3=Adventure Christian
+TIME=7
+
+TITL=Last Week's Results - Game 3
+MSG2=Peninsula Baptist
+MSG3=Berryessa Community
+TIME=7
+
+TITL=Last Week's Results - Game 4
+MSG2=San Jose Christian Alliance
+MSG3=Mount Olive #1
+TIME=7
+
+TITL=Basketball League Reminder
+MSG2=Please arrive 30 minutes before game
+MSG3=time to check-in, stretch and warm-up.
+TIME=15
+
