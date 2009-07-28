@@ -42,6 +42,8 @@ import be.aca.scorebord.domain.Team;
 
 public class ScoreboardControls extends JPanel {
 
+	private static final long serialVersionUID = -2086547491851918150L;
+
 	private JButton homeupButton, homednButton, homesetButton, guestupButton,
 			guestdnButton, guestsetButton, clearPoints, startHomeTimeout,
 			possesionButton, awaySetDown, gameUp, gameDown, homeSetUp, horn,
@@ -50,14 +52,11 @@ public class ScoreboardControls extends JPanel {
 
 	private JTextField homeTeam, awayTeam, points, timeout, slideTime;
 
-	private ApplicationContext context;
-
 	private ScoreboardModel model;
 
 	private Timer timeoutTimer = new Timer();
 
 	public ScoreboardControls(ApplicationContext context, ScoreboardModel model, Slideshow slideshow) {
-		this.context = context;
 		this.model = model;
 
 		setLayout(new GridLayout(10, 3, 3, 3));
@@ -243,11 +242,13 @@ public class ScoreboardControls extends JPanel {
 		Team home = model.getHomeTeam();
 		Team away = model.getAwayTeam();
 
-		if (((home.getPoints() == 8 && away.getPoints() < 8) || (away.getPoints() == 8 && home.getPoints() < 8)) && (home.getSets() + away.getSets() <= 4)) {
+		if (((home.getPoints() == 8 && away.getPoints() < 8) || (away.getPoints() == 8 && home.getPoints() < 8)) && (home.getSets() + away.getSets() <= 4) && !model.isFirstExtraTimeout()) {
+			model.setFirstExtraTimeout(true);
 			model.setTimeout(60000);
 			startTimeout(null);
 		}
-		if (((home.getPoints() == 16 && away.getPoints() < 16) || (away.getPoints() == 16 && home.getPoints() < 16)) && (home.getSets() + away.getSets() <= 4)) {
+		if (((home.getPoints() == 16 && away.getPoints() < 16) || (away.getPoints() == 16 && home.getPoints() < 16)) && (home.getSets() + away.getSets() <= 4) && !model.isSecondExtraTimeout()) {
+			model.setSecondExtraTimeout(true);
 			model.setTimeout(60000);
 			startTimeout(null);
 		}
@@ -259,6 +260,8 @@ public class ScoreboardControls extends JPanel {
 			home.setPoints(0);
 			home.setSets(home.getSets() + 1);
 			away.setPoints(0);
+			model.setFirstExtraTimeout(false);
+			model.setSecondExtraTimeout(false);
 		}
 		
 		if (((away.getPoints() == 25 && home.getPoints() <= 23) && (away.getSets() <= 2 && home.getSets() <= 2)) ||
@@ -268,6 +271,8 @@ public class ScoreboardControls extends JPanel {
 			away.setPoints(0);
 			away.setSets(away.getSets() + 1);
 			home.setPoints(0);
+			model.setFirstExtraTimeout(false);
+			model.setSecondExtraTimeout(false);
 		}
 	}
 
@@ -354,6 +359,30 @@ public class ScoreboardControls extends JPanel {
 					}
 				}, 0, 100);
 			}
+		} else {
+			model.setTimeoutRunning(true);
+			
+			timeoutTimer = new Timer();
+			timeoutTimer.scheduleAtFixedRate(new TimerTask() {
+	
+				@Override
+				public void run() {
+					EventQueue.invokeLater(new Runnable() {
+	
+						public void run() {
+							int timeout = model.getTimeout();
+							if (timeout > 100) {
+								model.setTimeout(timeout - 100);
+							} else {
+								timeoutTimer.cancel();
+								model.setTimeoutRunning(false);
+								NoiseMaker.beep();
+								model.resetTimeout();
+							}
+						}
+					});
+				}
+			}, 0, 100);
 		}
 	}
 
@@ -397,10 +426,6 @@ public class ScoreboardControls extends JPanel {
 		}
 	}
 
-	private javax.swing.Action getAction(String actionName) {
-		return context.getActionMap(model).get(actionName);
-	}
-	
 	private Team getTeam(ActionEvent ae) {
 		String id = ((JButton) ae.getSource()).getName();
 		if (id.toLowerCase().contains("home")) {

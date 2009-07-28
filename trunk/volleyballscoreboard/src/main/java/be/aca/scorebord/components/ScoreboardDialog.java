@@ -50,6 +50,8 @@ import be.aca.scorebord.domain.ScoreboardModel;
 
 public class ScoreboardDialog extends JDialog implements PropertyChangeListener {
 	
+	private static final long serialVersionUID = -2204473791000027582L;
+
 	private ScoreboardModel model;
 	private Slideshow slideshow;
 	private BufferedImage frame;
