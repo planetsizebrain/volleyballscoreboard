@@ -45,7 +45,6 @@ import be.aca.scorebord.domain.ScoreboardModel;
 
 public class Slideshow {
 
-	private String path;
 	private List<Image> images;
 	
 	private int currentSlideIndex = 0;
@@ -58,7 +57,6 @@ public class Slideshow {
 	
 	public Slideshow(ScoreboardModel model, String path, List<String> messages) throws IOException {
 		this.model = model;
-		this.path = path;
 		
 		File base = new File("slides.tmp");
 		base.deleteOnExit();
@@ -89,9 +87,14 @@ public class Slideshow {
 			int fontSize = getMaximumFontSize(longest, 1024, 320 / parts.length, g2d);
 			Font font = new Font("Helvetica", Font.BOLD, fontSize);
 			g2d.setFont(font);
+			FontMetrics metrics = g2d.getFontMetrics(font);
+			int height = (int) metrics.getStringBounds("TEST", g2d).getHeight();
+			int linesHeight = parts.length * (height + 5);
 			
 			for (int i = 0; i < parts.length; i++) {
-				g2d.drawString(parts[i], 25, 5 + fontSize + (i * (275 / parts.length)));
+				int width = (int) metrics.getStringBounds(parts[i], g2d).getWidth();
+				
+				g2d.drawString(parts[i], 512 - (width / 2), 160 + height - (linesHeight / 2) + (i * (height + 5)));
 			}
 			
 			images.add(messageImage);

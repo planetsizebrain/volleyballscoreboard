@@ -22,13 +22,11 @@
 package be.aca.scorebord.domain;
 
 import java.awt.Color;
-import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.Properties;
 
 import org.jdesktop.application.Action;
-
 
 public class ScoreboardModel {
 
@@ -41,6 +39,8 @@ public class ScoreboardModel {
 	private int defaultTimeout;
 	private int slideTime;
 	private boolean timeoutRunning = false;
+	private boolean firstExtraTimeout = false;
+	private boolean secondExtraTimeout = false;
 	
 	private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
@@ -136,6 +136,9 @@ public class ScoreboardModel {
 		setGames(1);
 		timeout = defaultTimeout;
 		
+		firstExtraTimeout = false;
+		secondExtraTimeout = false;
+		
 		this.pcs.firePropertyChange("reset", "old", "new");
 	}
 	
@@ -149,5 +152,21 @@ public class ScoreboardModel {
 	
 	public void resetTimeout() {
 		timeout = defaultTimeout;
+	}
+
+	public boolean isFirstExtraTimeout() {
+		return firstExtraTimeout;
+	}
+
+	public void setFirstExtraTimeout(boolean firstExtraTimeout) {
+		this.firstExtraTimeout = firstExtraTimeout;
+	}
+
+	public boolean isSecondExtraTimeout() {
+		return secondExtraTimeout;
+	}
+
+	public void setSecondExtraTimeout(boolean secondExtraTimeout) {
+		this.secondExtraTimeout = secondExtraTimeout;
 	}
 }
