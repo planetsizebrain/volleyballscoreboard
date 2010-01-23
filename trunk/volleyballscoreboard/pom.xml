@@ -3,7 +3,7 @@
   <groupId>fimez</groupId>
   <artifactId>ScoreBoard</artifactId>
   <name>ScoreBoard</name>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.3-SNAPSHOT</version>
   <build>
   	<plugins>
   		<plugin>
@@ -11,7 +11,7 @@
   			<artifactId>exec-maven-plugin</artifactId>
   			<version>1.1</version>
   			<configuration>
-          		<mainClass>be.aca.scorebord.application.VolleyballScoreboard</mainClass>
+          		<mainClass>be.aca.scorebord.application.ScoreBoard</mainClass>
           	</configuration>
   		</plugin>
   		<plugin>
@@ -21,7 +21,7 @@
                 <executions>
                     <execution>
                         <configuration>
-                            <mainClass>be.aca.scorebord.application.VolleyballScoreboard</mainClass>
+                            <mainClass>be.aca.scorebord.application.ScoreBoard</mainClass>
                             <!-- Optional -->
                             <onejarVersion>0.96</onejarVersion>
                             <!-- Optional, default is false -->
@@ -35,7 +35,14 @@
                     </execution>
                 </executions>
             </plugin>
-  		
+  			<plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <target>1.5</target>
+                    <source>1.5</source>
+                </configuration>
+            </plugin>
   	</plugins>
   </build>
   <repositories>
@@ -52,14 +59,10 @@
 	</pluginRepository>
   </pluginRepositories>
   <dependencies>
-  	<dependency>
+  	<!--  dependency>
   		<groupId>org.jdesktop</groupId>
   		<artifactId>appframework</artifactId>
   		<version>1.0.3</version>
-  	</dependency>
+  	</dependency-->
   </dependencies>
-  <properties>
-  	<maven.compile.source>1.5</maven.compile.source>
-		<maven.compile.target>1.5</maven.compile.target>
-	</properties>
 </project>
