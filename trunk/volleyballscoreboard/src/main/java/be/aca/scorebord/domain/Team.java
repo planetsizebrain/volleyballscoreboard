@@ -30,7 +30,7 @@ public class Team {
 	private String name;
 	private int points;
 	private int fouls;
-	private int timouts;
+	private int timeouts;
 	private int sets;
 	private boolean home = false;
 	private Color main;
@@ -49,6 +49,10 @@ public class Team {
 		this.sub = sub;
 	}
 	
+	private String getPropertyName(String name) {
+		return (home ? "home" : "away") + name;
+	}
+	
 	public boolean isHomeTeam() {
 		return home;
 	}
@@ -60,7 +64,7 @@ public class Team {
 	public void setName(String name) {
 		String old = this.name;
 		this.name = name;
-		this.pcs.firePropertyChange("name", old, name);
+		this.pcs.firePropertyChange(getPropertyName("name"), old, name);
 	}
 
 	public int getPoints() {
@@ -70,7 +74,7 @@ public class Team {
 	public void setPoints(int points) {
 		int old = this.points;
 		this.points = points;
-		this.pcs.firePropertyChange("points", old, points);
+		this.pcs.firePropertyChange(getPropertyName("points"), old, points);
 	}
 	
 	public int getSets() {
@@ -80,7 +84,7 @@ public class Team {
 	public void setSets(int sets) {
 		int old = this.sets;
 		this.sets = sets;
-		this.pcs.firePropertyChange("sets", old, sets);
+		this.pcs.firePropertyChange(getPropertyName("sets"), old, sets);
 	}
 
 	public int getFouls() {
@@ -92,13 +96,13 @@ public class Team {
 	}
 
 	public int getTimouts() {
-		return timouts;
+		return timeouts;
 	}
 
-	public void setTimouts(int timouts) {
-		int old = this.timouts;
-		this.timouts = timouts;
-		this.pcs.firePropertyChange("maincolor", old, timouts);
+	public void setTimouts(int timeouts) {
+		int old = this.timeouts;
+		this.timeouts = timeouts;
+		this.pcs.firePropertyChange("timeout", old, timeouts);
 	}
 	
 	public void addPropertyChangeListener(PropertyChangeListener listener) {
@@ -146,12 +150,12 @@ public class Team {
 	public void setMainColor(Color color) {
 		Color old = main;
 		this.main = color;
-		this.pcs.firePropertyChange("maincolor", old, main);
+		this.pcs.firePropertyChange(getPropertyName("maincolor"), old, main);
 	}
 	
 	public void setSubColor(Color color) {
 		Color old = sub;
 		this.sub = color;
-		this.pcs.firePropertyChange("subcolor", old, main);
+		this.pcs.firePropertyChange(getPropertyName("subcolor"), old, main);
 	}
 }
