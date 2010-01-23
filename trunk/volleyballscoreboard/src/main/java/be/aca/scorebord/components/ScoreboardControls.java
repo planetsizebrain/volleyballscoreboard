@@ -621,6 +621,8 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 				}, 0, 100);
 			}
 		} else {
+			NoiseMaker.beep();
+			
 			model.setRunningTimeout(timeout);
 			model.setTimeoutRunning(true);
 			
