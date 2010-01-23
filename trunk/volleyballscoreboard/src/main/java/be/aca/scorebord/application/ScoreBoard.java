@@ -34,7 +34,7 @@ public class ScoreBoard extends JFrame {
 	public ScoreBoard() {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setSize(1024, 768);
-		setLocation(50, 50);
+		//setLocation(50, 50);
 		setUndecorated(true);
 		
 		addMouseListener(new MouseAdapter() {  
@@ -79,24 +79,12 @@ public class ScoreBoard extends JFrame {
 			 }  
 		});  
 		
-//		tracker = new MediaTracker(scoreboard);
-//		try {
-//			int index = 0;
-//			List<Image> slides = slideshow.getSlides();
-//			for (Image image : slides) {
-//				tracker.addImage(image, index++);
-//			}
-//			
-//			tracker.waitForAll();
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-		
 		Properties settings = new Properties();
 		try {
 			settings.load(new FileInputStream("settings.properties"));
 			ScoreboardModel.INSTANCE.init(settings);
+			
+			setLocation(Integer.parseInt(settings.getProperty("window.x")), Integer.parseInt(settings.getProperty("window.y")));
 		
 			int nbrOfMessages = Integer.parseInt(settings.getProperty("psa.message.total", "0"));
 			List<String> messages = new ArrayList<String>(nbrOfMessages);
@@ -111,12 +99,6 @@ public class ScoreBoard extends JFrame {
 			
 			JDialog controls = new ScoreboardControls(slideshow);
 			controls.setVisible(true);
-			
-//			JDialog hud = new JDialog();
-//			hud.setSize(1024, 800);
-//			hud.getContentPane().setLayout(new BorderLayout());
-//			hud.getContentPane().add(new ScoreboardPanel(this, model, slideshow), BorderLayout.CENTER);
-//			hud.setVisible(true);
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 		}
@@ -127,7 +109,7 @@ public class ScoreBoard extends JFrame {
 			public void run() {
 				ScoreBoard scoreboard = new ScoreBoard();
 				scoreboard.setVisible(true);
-				scoreboard.setLocation(0, 0);
+				//scoreboard.setLocation(0, 0);
 			}
 		});
 	}
