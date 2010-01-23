@@ -58,7 +58,7 @@ public enum ScoreboardModel {
 		awayTeam = new Team(properties.getProperty("awayteam", "GUEST"), main, sub, false);
 		timeout = Integer.parseInt(properties.getProperty("timeout", "30000"));
 		slideTime = Integer.parseInt(properties.getProperty("slideTime", "10000"));
-		generalTimeout = Integer.parseInt(properties.getProperty("generaltimeout", "30000"));;
+		generalTimeout = Integer.parseInt(properties.getProperty("generalTimeout", "30000"));;
 	}
 	
 	public Possesion getPossesion() {
