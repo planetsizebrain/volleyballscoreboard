@@ -26,17 +26,18 @@ import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.Properties;
 
-import org.jdesktop.application.Action;
+public enum ScoreboardModel {
 
-public class ScoreboardModel {
-
+	INSTANCE;
+	
 	private Team homeTeam;
 	private Team awayTeam;
 
 	private Possesion possession = Possesion.HOME;
 	private int games = 1;
 	private int timeout;
-	private int defaultTimeout;
+	private int generalTimeout;
+	private int runningTimeout;
 	private int slideTime;
 	private boolean timeoutRunning = false;
 	private boolean firstExtraTimeout = false;
@@ -44,7 +45,11 @@ public class ScoreboardModel {
 	
 	private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
-	public ScoreboardModel(Properties properties) {
+	private ScoreboardModel() {
+		// Deny instantiation
+	};
+	
+	public void init(Properties properties) {
 		Color main = Color.decode(properties.getProperty("hometeam.color.main", "0x000000"));
 		Color sub = Color.decode(properties.getProperty("hometeam.color.sub", "0x000000"));
 		homeTeam = new Team(properties.getProperty("hometeam", "HOME"), main, sub, true);
@@ -53,7 +58,7 @@ public class ScoreboardModel {
 		awayTeam = new Team(properties.getProperty("awayteam", "GUEST"), main, sub, false);
 		timeout = Integer.parseInt(properties.getProperty("timeout", "30000"));
 		slideTime = Integer.parseInt(properties.getProperty("slideTime", "10000"));
-		defaultTimeout = timeout;
+		generalTimeout = Integer.parseInt(properties.getProperty("generaltimeout", "30000"));;
 	}
 	
 	public Possesion getPossesion() {
@@ -76,7 +81,6 @@ public class ScoreboardModel {
 		}
 	}
 	
-	@Action
 	public void switchPossession() {
 		if (Possesion.HOME == possession) {
 			possession = Possesion.AWAY;
@@ -107,6 +111,26 @@ public class ScoreboardModel {
 		this.pcs.firePropertyChange("timeout", old, timeout);
 	}
 	
+	public int getRunningTimeout() {
+		return runningTimeout;
+	}
+
+	public void setRunningTimeout(int runningTimeout) {
+		int old = this.runningTimeout;
+		this.runningTimeout = runningTimeout;
+		this.pcs.firePropertyChange("timeout", old, runningTimeout);
+	}
+	
+	public int getGeneralTimeout() {
+		return generalTimeout;
+	}
+
+	public void setGeneralTimeout(int generalTimeout) {
+		int old = this.generalTimeout;
+		this.generalTimeout = generalTimeout;
+		this.pcs.firePropertyChange("generalTimeout", old, generalTimeout);
+	}
+	
 	public boolean isTimeoutRunning() {
 		return timeoutRunning;
 	}
@@ -134,7 +158,6 @@ public class ScoreboardModel {
 		awayTeam.reset();
 		
 		setGames(1);
-		timeout = defaultTimeout;
 		
 		firstExtraTimeout = false;
 		secondExtraTimeout = false;
@@ -150,10 +173,6 @@ public class ScoreboardModel {
 		return slideTime;
 	}
 	
-	public void resetTimeout() {
-		timeout = defaultTimeout;
-	}
-
 	public boolean isFirstExtraTimeout() {
 		return firstExtraTimeout;
 	}
