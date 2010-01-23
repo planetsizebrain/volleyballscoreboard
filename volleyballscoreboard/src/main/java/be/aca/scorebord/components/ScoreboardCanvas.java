@@ -1,27 +1,7 @@
-/**
- * Copyright (c) 2009, Jan Eerdekens
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
- * conditions are met:
- *
- *    * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
- *    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer 
- *      in the documentation and/or other materials provided with the distribution.
- *    * Neither the name of the Squared IT Solutions nor the names of its contributors may be used to endorse or promote products derived 
- *      from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
- * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 package be.aca.scorebord.components;
 
 import java.awt.AlphaComposite;
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -35,47 +15,50 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.geom.Arc2D;
 import java.awt.image.BufferedImage;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.net.MalformedURLException;
 
 import javax.imageio.ImageIO;
 import javax.swing.JColorChooser;
-import javax.swing.JDialog;
+import javax.swing.JFrame;
 
-import be.aca.scorebord.application.VolleyballScoreboard;
 import be.aca.scorebord.domain.Possesion;
 import be.aca.scorebord.domain.ScoreboardModel;
 
-public class ScoreboardDialog extends JDialog implements PropertyChangeListener {
-	
-	private static final long serialVersionUID = -2204473791000027582L;
+public class ScoreboardCanvas extends Canvas {
 
 	private ScoreboardModel model;
 	private Slideshow slideshow;
 	private BufferedImage frame;
 	private BufferedImage ball;
 	private BufferedImage ballsmall;
+	
+	private int previousIndex = 1; //The FPS and the middle counter for them
+    private long[] previousTimes = new long[128];
+    private boolean previousFilled = false;
+    private double frameRate;
+	
 	private Point point = new Point(0, 0);
-
-	public ScoreboardDialog(final ScoreboardModel model, Slideshow slideshow) {
+	
+	public ScoreboardCanvas(final JFrame parent, final ScoreboardModel model, Slideshow slideshow) {
 		this.model = model;
 		this.slideshow = slideshow;
 
-		setUndecorated(true);
+		//setIgnoreRepaint(true);
+		previousTimes[0] = System.currentTimeMillis();
+		
 		setSize(1024, 768);
 		setBackground(Color.BLACK);
 		setLocation(0, 0);
 		
 		try {
-			frame = (BufferedImage) ImageIO.read(VolleyballScoreboard.class.getResourceAsStream("/frame.png"));
-			ball = (BufferedImage) ImageIO.read(VolleyballScoreboard.class.getResourceAsStream("/ball.png"));
-			ballsmall = (BufferedImage) ImageIO.read(VolleyballScoreboard.class.getResourceAsStream("/ballsmall.png"));
+			frame = (BufferedImage) ImageIO.read(ScoreboardCanvas.class.getResourceAsStream("/frame.png"));
+			ball = (BufferedImage) ImageIO.read(ScoreboardCanvas.class.getResourceAsStream("/ball.png"));
+			ballsmall = (BufferedImage) ImageIO.read(ScoreboardCanvas.class.getResourceAsStream("/ballsmall.png"));
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
+		} 
 		
 		addMouseListener(new MouseAdapter() {  
 			public void mousePressed(MouseEvent e) {  
@@ -86,22 +69,22 @@ public class ScoreboardDialog extends JDialog implements PropertyChangeListener 
 				
 				Arc2D.Double homeMain = new Arc2D.Double(300 + 2, 27, 170, 170, 30, 180, Arc2D.CHORD);
 				if (homeMain.contains(e.getX(), e.getY())) {
-					model.getHomeTeam().setMainColor(JColorChooser.showDialog(ScoreboardDialog.this, "Choose " + model.getHomeTeam() + " color", model.getHomeTeam().getMainColor()));
+					model.getHomeTeam().setMainColor(JColorChooser.showDialog(ScoreboardCanvas.this, "Choose " + model.getHomeTeam() + " color", model.getHomeTeam().getMainColor()));
 				}
 				
 				Arc2D.Double homeSub = new Arc2D.Double(300 + 2, 27, 170, 170, 210, 180, Arc2D.CHORD);
 				if (homeSub.contains(e.getX(), e.getY())) {
-					model.getHomeTeam().setSubColor(JColorChooser.showDialog(ScoreboardDialog.this, "Choose " + model.getHomeTeam() + " color", model.getHomeTeam().getSubColor()));
+					model.getHomeTeam().setSubColor(JColorChooser.showDialog(ScoreboardCanvas.this, "Choose " + model.getHomeTeam() + " color", model.getHomeTeam().getSubColor()));
 				}
 				
 				Arc2D.Double awayMain = new Arc2D.Double(getWidth() - 300 - 175 + 2, 27, 170, 170, 30, 180, Arc2D.CHORD);
 				if (awayMain.contains(e.getX(), e.getY())) {
-					model.getAwayTeam().setMainColor(JColorChooser.showDialog(ScoreboardDialog.this, "Choose " + model.getAwayTeam() + " color", model.getAwayTeam().getMainColor()));
+					model.getAwayTeam().setMainColor(JColorChooser.showDialog(ScoreboardCanvas.this, "Choose " + model.getAwayTeam() + " color", model.getAwayTeam().getMainColor()));
 				}
 				
 				Arc2D.Double awaySub = new Arc2D.Double(getWidth() - 300 - 175 + 2, 27, 170, 170, 210, 180, Arc2D.CHORD);
 				if (awaySub.contains(e.getX(), e.getY())) {
-					model.getAwayTeam().setSubColor(JColorChooser.showDialog(ScoreboardDialog.this, "Choose " + model.getAwayTeam() + " color", model.getAwayTeam().getSubColor()));
+					model.getAwayTeam().setSubColor(JColorChooser.showDialog(ScoreboardCanvas.this, "Choose " + model.getAwayTeam() + " color", model.getAwayTeam().getSubColor()));
 				}
 			}  
 		});  
@@ -109,18 +92,38 @@ public class ScoreboardDialog extends JDialog implements PropertyChangeListener 
 		addMouseMotionListener(new MouseMotionAdapter() {  
 			 public void mouseDragged(MouseEvent e) {  
 				 if (!e.isMetaDown()) {  
-					 Point p = getLocation();  
-					 setLocation(p.x + e.getX() - point.x, p.y + e.getY() - point.y);  
+					 Point p = parent.getLocation();  
+					 parent.setLocation(p.x + e.getX() - point.x, p.y + e.getY() - point.y);  
 				 }  
 			 }  
 		});  
 	}
-
+	
 	@Override
 	public void paint(Graphics g) {
+		super.paint(g);
+		
+		long now = System.currentTimeMillis();
+		int nbrOfFrames = previousTimes.length;
+		double newRate;
+		if (previousFilled) {
+			newRate = (double) nbrOfFrames / (double) (now - previousTimes[previousIndex]) * 1000.0;
+		} else {
+			newRate = 1000.0 / (double) (now - previousTimes[nbrOfFrames - 1]);
+		}
+		
+		frameRate = newRate;
+		previousTimes[previousIndex] = now;
+		previousIndex++;
+		if (previousIndex >= nbrOfFrames) {
+			previousIndex = 0;
+			previousFilled = true;
+		}
+		
 		Graphics2D g2d = (Graphics2D) g;
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+		g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
 		g2d.clearRect(0, 0, getWidth(), getHeight());
 		
 		Font normalFont = new Font("Helvetica", Font.BOLD, 50);
@@ -245,8 +248,14 @@ public class ScoreboardDialog extends JDialog implements PropertyChangeListener 
 		} else {
 			g2d.drawImage(ballsmall, getWidth() - 340, 314, 40, 40, this);
 		}
+		
+		g2d.setColor(Color.WHITE);
+		g2d.setFont(normalFont);
+		String fps = String.format("%2.1f", frameRate);
+		
+		g2d.drawString(fps, 0, 50);
 	}
-	
+
 	private int getMaximumFontSize(String text, int width, Graphics2D g2d) {
 		int size = 50;
 		Font font = new Font("Helvetica", Font.BOLD, size);
@@ -261,9 +270,5 @@ public class ScoreboardDialog extends JDialog implements PropertyChangeListener 
 		}
 		
 		return size;
-	}
-	
-	public void propertyChange(PropertyChangeEvent evt) {
-		 repaint();
 	}
 }

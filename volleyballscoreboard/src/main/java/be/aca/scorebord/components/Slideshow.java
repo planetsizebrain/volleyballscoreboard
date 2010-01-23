@@ -39,8 +39,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.jdesktop.application.Action;
-
 import be.aca.scorebord.domain.ScoreboardModel;
 
 public class Slideshow {
@@ -51,12 +49,11 @@ public class Slideshow {
 	private boolean stopTimer = false;
 	
 	private Toolkit toolkit = Toolkit.getDefaultToolkit();
-	private Timer timer = new Timer();
-	private ScoreboardModel model;
+	private Timer timer = null;
 	private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 	
-	public Slideshow(ScoreboardModel model, String path, List<String> messages) throws IOException {
-		this.model = model;
+	public Slideshow(String path, List<String> messages) throws IOException {
+		ScoreboardModel model = ScoreboardModel.INSTANCE;
 		
 		File base = new File("slides.tmp");
 		base.deleteOnExit();
@@ -109,9 +106,9 @@ public class Slideshow {
 		return images.get(currentSlideIndex);
 	}
 	
-	@Action
 	public void start() {
 		stopTimer = false;
+		timer = new Timer();
 		timer.schedule(new TimerTask(){
 
 			@Override
@@ -128,12 +125,12 @@ public class Slideshow {
 					
 					pcs.firePropertyChange("currentSlide", old, currentSlideIndex);
 				}
-			}}, 0, model.getSlideTime());
+			}}, 0, ScoreboardModel.INSTANCE.getSlideTime());
 	}
 	
-	@Action
 	public void stop() {
 		stopTimer = true;
+		timer.cancel();
 	}
 	
 	public void addPropertyChangeListener(PropertyChangeListener listener) {

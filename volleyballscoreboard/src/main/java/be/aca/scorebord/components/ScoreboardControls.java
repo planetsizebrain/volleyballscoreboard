@@ -1,340 +1,604 @@
-/**
- * Copyright (c) 2009, Jan Eerdekens
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
- * conditions are met:
- *
- *    * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
- *    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer 
- *      in the documentation and/or other materials provided with the distribution.
- *    * Neither the name of the Squared IT Solutions nor the names of its contributors may be used to endorse or promote products derived 
- *      from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
- * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 package be.aca.scorebord.components;
 
 import java.awt.Color;
 import java.awt.EventQueue;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Image;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JColorChooser;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import org.jdesktop.application.Action;
-import org.jdesktop.application.ApplicationContext;
-
+import be.aca.scorebord.application.ScoreBoard;
 import be.aca.scorebord.domain.Possesion;
 import be.aca.scorebord.domain.ScoreboardModel;
 import be.aca.scorebord.domain.Team;
 
-public class ScoreboardControls extends JPanel {
+public class ScoreboardControls extends JDialog implements PropertyChangeListener {
 
-	private static final long serialVersionUID = -2086547491851918150L;
-
-	private JButton homeupButton, homednButton, homesetButton, guestupButton,
-			guestdnButton, guestsetButton, clearPoints, startHomeTimeout,
+	private static final String RESOURCE_BUNDLE = "/be/aca/scorebord/application/resources/VolleyballScoreboard.properties";
+	private JButton homeupButton, homednButton, homesetButton, awayupButton,
+			awaydnButton, guestsetButton, clearPoints, startHomeTimeout,
 			possesionButton, awaySetDown, gameUp, gameDown, homeSetUp, horn,
-			awaySetUp, beep, clearSets, homeSetDown, clearTimeout, reset,
-			suspendSlidesButton, resumeSlidesButton, startAwayTimeout;
+			awaySetUp, beep, clearSets, homeSetDown, stopHomeTimeout, reset,
+			suspendSlidesButton, resumeSlidesButton, startAwayTimeout,
+			homeMainColor, homeSubColor, awayMainColor, awaySubColor, stopAwayTimeout,
+			startTimeout, stopTimeout;
 
-	private JTextField homeTeam, awayTeam, points, timeout, slideTime;
-
-	private ScoreboardModel model;
-
+	private JTextField homeTeam, awayTeam, points, slideTime,
+			homePoints, awayPoints, homeSets, awaySets, games, 
+			homeTimeouts, awayTimeouts, homeTimeout, awayTimeout, timeout;
+	
+	private JLabel slide;
+	private JPanel slideImage;
+	
 	private Timer timeoutTimer = new Timer();
+	
+	private Properties resources = new Properties();
+	
+	private Slideshow slideshow;
 
-	public ScoreboardControls(ApplicationContext context, ScoreboardModel model, Slideshow slideshow) {
-		this.model = model;
+	public ScoreboardControls(Slideshow slideshow) {
+		this.slideshow = slideshow;
+		
+		setLayout(new GridLayout(5, 3, 3, 3));
+		setSize(600, 700);
+		setLocation(0, 0);
+		
+		try {
+			resources.load(ScoreboardControls.class.getResourceAsStream(RESOURCE_BUNDLE));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		buildDialog();
+		
+		ScoreboardModel.INSTANCE.addPropertyChangeListener(this);
+		slideshow.addPropertyChangeListener(this);
+	}
+	
+	private String getText(String key) {
+		String text = resources.getProperty(key);
+		if (text != null && !text.equals("")) {
+			return text;
+		} else {
+			return key;
+		}
+	}
+	
+	private class AddPointListener implements ActionListener {
 
-		setLayout(new GridLayout(10, 3, 3, 3));
+		private Team team;
+		
+		public AddPointListener(Team team) {
+			this.team = team;
+		}
+		public void actionPerformed(ActionEvent e) {
+			team.addPoint();
+			
+			ScoreboardModel model = ScoreboardModel.INSTANCE;
+			if (team.isHomeTeam() && model.getPossesion() == Possesion.AWAY) {
+				model.switchPossession();
+			}
+			if (!team.isHomeTeam() && model.getPossesion() == Possesion.HOME) {
+				model.switchPossession();
+			}
 
-		// Row 1
+			Team home = model.getHomeTeam();
+			Team away = model.getAwayTeam();
+
+			if (((home.getPoints() == 8 && away.getPoints() < 8) || (away.getPoints() == 8 && home.getPoints() < 8)) && (home.getSets() + away.getSets() <= 4) && !model.isFirstExtraTimeout()) {
+				model.setFirstExtraTimeout(true);
+//				model.setTimeout(60000);
+				startTimeout(null, 60000);
+			}
+			if (((home.getPoints() == 16 && away.getPoints() < 16) || (away.getPoints() == 16 && home.getPoints() < 16)) && (home.getSets() + away.getSets() <= 4) && !model.isSecondExtraTimeout()) {
+				model.setSecondExtraTimeout(true);
+//				model.setTimeout(60000);
+				startTimeout(null, 60000);
+			}
+			
+			if (((home.getPoints() == 25 && away.getPoints() <= 23) && (home.getSets() <= 2 && away.getSets() <= 2)) ||
+				((home.getPoints() >= 25 && Math.abs(home.getPoints() - away.getPoints()) >= 2) && (home.getSets() <= 2 && away.getSets() <= 2)) ||
+				((home.getPoints() == 15 && away.getPoints() <= 13) && (home.getSets() + away.getSets() == 4)) ||
+				((home.getPoints() >= 15 && Math.abs(home.getPoints() - away.getPoints()) >= 2) && (home.getSets() + away.getSets() == 4))) {
+				home.setPoints(0);
+				home.setSets(home.getSets() + 1);
+				away.setPoints(0);
+				model.setFirstExtraTimeout(false);
+				model.setSecondExtraTimeout(false);
+			}
+			
+			if (((away.getPoints() == 25 && home.getPoints() <= 23) && (away.getSets() <= 2 && home.getSets() <= 2)) ||
+				((away.getPoints() >= 25 && Math.abs(away.getPoints() - home.getPoints()) >= 2) && (away.getSets() <= 2 && home.getSets() <= 2)) ||
+				((away.getPoints() == 15 && home.getPoints() <= 13) && (away.getSets() + home.getSets() == 4)) ||
+				((away.getPoints() >= 15 && Math.abs(away.getPoints() - home.getPoints()) >= 2) && (away.getSets() + home.getSets() == 4))) {
+				away.setPoints(0);
+				away.setSets(away.getSets() + 1);
+				home.setPoints(0);
+				model.setFirstExtraTimeout(false);
+				model.setSecondExtraTimeout(false);
+			}
+		}
+		
+	}
+	
+	private void buildDialog() {
+		JPanel homePanel = new JPanel(new GridBagLayout());
 		homeTeam = new JTextField(20);
 		homeTeam.setName("homeTeam");
-		homeTeam.setAction(context.getActionMap(this).get("setHomeTeam"));
-		homeTeam.setText(model.getHomeTeam().getName());
-		add(homeTeam);
+		homeTeam.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getHomeTeam().setName(homeTeam.getText());
+			}
+		});
+		homeTeam.setText("HOME");
+		homeTeam.setBackground(ScoreboardModel.INSTANCE.getPossesion() == Possesion.HOME ? Color.RED : Color.WHITE);
+		homePanel.add(homeTeam, new GridBagConstraints(0, 0, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		homeMainColor = new JButton("MAIN");
+		homeMainColor.setName("homeMainColor");
+		homeMainColor.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				Team team = ScoreboardModel.INSTANCE.getHomeTeam();
+				team.setMainColor(JColorChooser.showDialog(ScoreboardControls.this, "Choose " + team.getName() + " color", team.getMainColor()));
+			}
+		});
+		homeMainColor.setForeground(ScoreboardModel.INSTANCE.getHomeTeam().getMainColor());
+		homePanel.add(homeMainColor, new GridBagConstraints(0, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		homeSubColor = new JButton("SUB");
+		homeSubColor.setName("homeMainColor");
+		homeSubColor.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				Team team = ScoreboardModel.INSTANCE.getHomeTeam();
+				team.setSubColor(JColorChooser.showDialog(ScoreboardControls.this, "Choose " + team.getName() + " color", team.getSubColor()));
+			}
+		});
+		homeSubColor.setForeground(ScoreboardModel.INSTANCE.getHomeTeam().getSubColor());
+		homePanel.add(homeSubColor, new GridBagConstraints(1, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(homePanel);
 
-		reset = new JButton();
+		
+		JPanel posPanel = new JPanel(new GridBagLayout());
+		possesionButton = new JButton(getText("possesion.text"));
+		possesionButton.setName("possesion");
+		possesionButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.switchPossession();
+			}
+		});
+		posPanel.add(possesionButton, new GridBagConstraints(0, 0, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		reset = new JButton(getText("reset.text"));
 		reset.setName("reset");
-		reset.setAction(context.getActionMap(this).get("reset"));
-		add(reset);
+		reset.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.reset();
+			}
+		});
+		posPanel.add(reset, new GridBagConstraints(0, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(posPanel);
+		
 
+		JPanel awayPanel = new JPanel(new GridBagLayout());
 		awayTeam = new JTextField(20);
 		awayTeam.setName("awayTeam");
-		awayTeam.setAction(context.getActionMap(this).get("setAwayTeam"));
-		awayTeam.setText(model.getAwayTeam().getName());
-		add(awayTeam);
-
-		// Row 2
-		homeupButton = new JButton();
+		awayTeam.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getAwayTeam().setName(awayTeam.getText());
+			}
+		});
+		awayTeam.setText("AWAY");
+		awayTeam.setBackground(ScoreboardModel.INSTANCE.getPossesion() == Possesion.AWAY ? Color.RED : Color.WHITE);
+		awayPanel.add(awayTeam, new GridBagConstraints(0, 0, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		awayMainColor = new JButton("MAIN");
+		awayMainColor.setName("awayMainColor");
+		awayMainColor.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				Team team = ScoreboardModel.INSTANCE.getAwayTeam();
+				team.setMainColor(JColorChooser.showDialog(ScoreboardControls.this, "Choose " + team.getName() + " color", team.getMainColor()));
+			}
+		});
+		awayMainColor.setForeground(ScoreboardModel.INSTANCE.getAwayTeam().getMainColor());
+		awayPanel.add(awayMainColor, new GridBagConstraints(0, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		awaySubColor = new JButton("SUB");
+		awaySubColor.setName("awayMainColor");
+		awaySubColor.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				Team team = ScoreboardModel.INSTANCE.getAwayTeam();
+				team.setSubColor(JColorChooser.showDialog(ScoreboardControls.this, "Choose " + team.getName() + " color", team.getSubColor()));
+			}
+		});
+		awaySubColor.setForeground(ScoreboardModel.INSTANCE.getAwayTeam().getSubColor());
+		awayPanel.add(awaySubColor, new GridBagConstraints(1, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(awayPanel);
+		
+		
+		JPanel homePointPanel = new JPanel(new GridBagLayout());
+		homePoints = new JTextField();
+		homePoints.setText(Integer.toString(ScoreboardModel.INSTANCE.getHomeTeam().getPoints()));
+		homePoints.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getHomeTeam().setPoints(new Integer(homePoints.getText()));
+			}
+		});
+		homePointPanel.add(homePoints, new GridBagConstraints(0, 0, 1, 2, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		homeupButton = new JButton(getText("homeup.text"));
 		homeupButton.setName("homeup");
-		homeupButton.setAction(context.getActionMap(this).get("addPoint"));
-		add(homeupButton);
-
-		possesionButton = new JButton();
-		possesionButton.setName("possesion");
-		possesionButton.setAction(context.getActionMap(model).get(
-				"switchPossession"));
-		add(possesionButton);
-
-		guestupButton = new JButton();
-		guestupButton.setName("guestup");
-		guestupButton.setAction(context.getActionMap(this).get("addPoint"));
-		add(guestupButton);
-
-		// Row 3
-		homednButton = new JButton();
+		homeupButton.addActionListener(new AddPointListener(ScoreboardModel.INSTANCE.getHomeTeam()));
+		homePointPanel.add(homeupButton, new GridBagConstraints(1, 0, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(homePointPanel);
+		
+		homednButton = new JButton(getText("homedn.text"));
 		homednButton.setName("homedn");
-		homednButton.setAction(context.getActionMap(this).get("removePoint"));
-		add(homednButton);
+		homednButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getHomeTeam().removePoint();
+			}
+		});
+		homePointPanel.add(homednButton, new GridBagConstraints(1, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
 
-		clearPoints = new JButton();
+		
+		JPanel soundPanel = new JPanel(new GridBagLayout());
+		
+		clearPoints = new JButton(getText("clearPoints.text"));
 		clearPoints.setName("clearPoints");
-		clearPoints.setAction(context.getActionMap(this).get("clearPoints"));
-		add(clearPoints);
+		clearPoints.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getHomeTeam().setPoints(0);
+				ScoreboardModel.INSTANCE.getAwayTeam().setPoints(0);
+			}
+		});
+		soundPanel.add(clearPoints, new GridBagConstraints(0, 1, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
 
-		guestdnButton = new JButton();
-		guestdnButton.setName("guestdn");
-		guestdnButton.setAction(context.getActionMap(this).get("removePoint"));
-		add(guestdnButton);
-
-		// Row 5
-		homesetButton = new JButton();
-		homesetButton.setName("homeset");
-		homesetButton.setAction(context.getActionMap(this).get("setPoints"));
-		add(homesetButton);
-
-		points = new JTextField(20);
-		points.setName("points");
-		add(points);
-
-		guestsetButton = new JButton();
-		guestsetButton.setName("guestset");
-		guestsetButton.setAction(context.getActionMap(this).get("setPoints"));
-		add(guestsetButton);
-
-		// Row 6
-		homeSetUp = new JButton();
-		homeSetUp.setName("homeSetUp");
-		homeSetUp.setAction(context.getActionMap(this).get("addSet"));
-		add(homeSetUp);
-
-		clearSets = new JButton();
+		clearSets = new JButton(getText("clearSets.text"));
 		clearSets.setName("clearSets");
-		clearSets.setAction(context.getActionMap(this).get("clearSets"));
-		add(clearSets);
+		clearSets.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getHomeTeam().setSets(0);
+				ScoreboardModel.INSTANCE.getAwayTeam().setSets(0);
+			}
+		});
+		soundPanel.add(clearSets, new GridBagConstraints(0, 2, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
 
-		awaySetUp = new JButton();
-		awaySetUp.setName("awaySetUp");
-		awaySetUp.setAction(context.getActionMap(this).get("addSet"));
-		add(awaySetUp);
-
-		//
-		homeSetDown = new JButton();
-		homeSetDown.setName("homeSetDown");
-		homeSetDown.setAction(context.getActionMap(this).get("removeSet"));
-		add(homeSetDown);
-
-		beep = new JButton();
+		
+		beep = new JButton(getText("beep.text"));
 		beep.setName("beep");
-		beep.setAction(context.getActionMap(this).get("makeNoise"));
-		add(beep);
+		beep.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				NoiseMaker.beep();
+			}
+		});
+		soundPanel.add(beep, new GridBagConstraints(0, 0, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
 
-		awaySetDown = new JButton();
-		awaySetDown.setName("awaySetDown");
-		awaySetDown.setAction(context.getActionMap(this).get("removeSet"));
-		add(awaySetDown);
-
-		//
-		gameUp = new JButton();
-		gameUp.setName("gameUp");
-		gameUp.setAction(context.getActionMap(this).get("gameUp"));
-		add(gameUp);
-
-		horn = new JButton();
+		horn = new JButton(getText("horn.text"));
 		horn.setName("horn");
-		horn.setAction(context.getActionMap(this).get("makeNoise"));
-		add(horn);
+		horn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				NoiseMaker.horn();
+			}
+		});
+		soundPanel.add(horn, new GridBagConstraints(1, 0, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(soundPanel);
+		
 
-		gameDown = new JButton();
+		JPanel awayPointPanel = new JPanel(new GridBagLayout());
+		awayPoints = new JTextField();
+		awayPoints.setText(Integer.toString(ScoreboardModel.INSTANCE.getHomeTeam().getPoints()));
+		awayPoints.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getAwayTeam().setPoints(new Integer(awayPoints.getText()));
+			}
+		});
+		awayPointPanel.add(awayPoints, new GridBagConstraints(2, 0, 1, 2, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		awayupButton = new JButton(getText("guestup.text"));
+		awayupButton.setName("awayup");
+		awayupButton.addActionListener(new AddPointListener(ScoreboardModel.INSTANCE.getAwayTeam()));
+		awayPointPanel.add(awayupButton, new GridBagConstraints(0, 0, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(awayPointPanel);
+		
+		awaydnButton = new JButton(getText("guestdn.text"));
+		awaydnButton.setName("awaydn");
+		awaydnButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getAwayTeam().removePoint();
+			}
+		});
+		awayPointPanel.add(awaydnButton, new GridBagConstraints(0, 1, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+
+		
+		JPanel homeSetPanel = new JPanel(new GridBagLayout());
+		homeSets = new JTextField();
+		homeSets.setText(Integer.toString(ScoreboardModel.INSTANCE.getHomeTeam().getSets()));
+		homeSets.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getHomeTeam().setSets(new Integer(homeSets.getText()));
+			}
+		});
+		homeSetPanel.add(homeSets, new GridBagConstraints(0, 0, 1, 2, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+
+		homeSetUp = new JButton(getText("homeSetUp.text"));
+		homeSetUp.setName("homeSetUp");
+		homeSetUp.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getHomeTeam().addSet();
+			}
+		});
+		homeSetPanel.add(homeSetUp, new GridBagConstraints(1, 0, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		
+		homeSetDown = new JButton(getText("homeSetDown.text"));
+		homeSetDown.setName("homeSetDown");
+		homeSetDown.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getHomeTeam().removeSet();
+			}
+		});
+		homeSetPanel.add(homeSetDown, new GridBagConstraints(1, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(homeSetPanel);
+		
+		
+		JPanel gamePanel = new JPanel(new GridBagLayout());
+		gameUp = new JButton(getText("gameUp.text"));
+		gameUp.setName("gameUp");
+		gameUp.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				int games = ScoreboardModel.INSTANCE.getGames();
+				ScoreboardModel.INSTANCE.setGames(games > 0 ? games + 1 : games);
+			}
+		});
+		gamePanel.add(gameUp, new GridBagConstraints(0, 0, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		
+		games = new JTextField();
+		games.setText(Integer.toString(ScoreboardModel.INSTANCE.getGames()));
+		games.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.setGames(new Integer(games.getText()));
+			}
+		});
+		gamePanel.add(games, new GridBagConstraints(0, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		
+		gameDown = new JButton(getText("gameDown.text"));
 		gameDown.setName("gameDown");
-		gameDown.setAction(context.getActionMap(this).get("gameDown"));
-		add(gameDown);
+		gameDown.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				int games = ScoreboardModel.INSTANCE.getGames();
+				ScoreboardModel.INSTANCE.setGames(games > 0 ? games - 1 : games);
+			}
+		});
+		gamePanel.add(gameDown, new GridBagConstraints(0, 2, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(gamePanel);
+		
+		
+		JPanel awaySetPanel = new JPanel(new GridBagLayout());
+		awaySets = new JTextField();
+		awaySets.setText(Integer.toString(ScoreboardModel.INSTANCE.getAwayTeam().getSets()));
+		awaySets.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getAwayTeam().setSets(new Integer(awaySets.getText()));
+			}
+		});
+		awaySetPanel.add(awaySets, new GridBagConstraints(2, 0, 1, 2, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		
+		awaySetUp = new JButton(getText("awaySetUp.text"));
+		awaySetUp.setName("awaySetUp");
+		awaySetUp.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getAwayTeam().addSet();
+			}
+		});
+		add(awaySetUp);
+		awaySetPanel.add(awaySetUp, new GridBagConstraints(0, 0, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
 
-		// Timeouts
-		startHomeTimeout = new JButton();
+		awaySetDown = new JButton(getText("awaySetDown.text"));
+		awaySetDown.setName("awaySetDown");
+		awaySetDown.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getAwayTeam().removeSet();
+			}
+		});
+		add(awaySetDown);
+		awaySetPanel.add(awaySetDown, new GridBagConstraints(0, 1, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(awaySetPanel);
+		
+
+		JPanel homeTimeoutPanel = new JPanel(new GridBagLayout());
+		homeTimeouts = new JTextField();
+		homeTimeouts.setText(Integer.toString(ScoreboardModel.INSTANCE.getHomeTeam().getTimouts()));
+		homeTimeouts.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getHomeTeam().setTimouts(new Integer(homeTimeouts.getText()));
+			}
+		});
+		homeTimeoutPanel.add(homeTimeouts, new GridBagConstraints(0, 0, 1, 3, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		startHomeTimeout = new JButton(getText("startHomeTimeout.text"));
 		startHomeTimeout.setName("startHomeTimeout");
-		startHomeTimeout.setAction(context.getActionMap(this).get("startTimeout"));
-		add(startHomeTimeout);
-
+		startHomeTimeout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				startTimeout(ScoreboardModel.INSTANCE.getHomeTeam(), ScoreboardModel.INSTANCE.getTimeout());
+			}
+		});
+		homeTimeoutPanel.add(startHomeTimeout, new GridBagConstraints(1, 0, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		homeTimeout = new JTextField();
+		homeTimeout.setText(Integer.toString(ScoreboardModel.INSTANCE.getTimeout()));
+		homeTimeout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.setTimeout(new Integer(homeTimeout.getText()));
+				awayTimeout.setText(homeTimeout.getText());
+			}
+		});
+		homeTimeoutPanel.add(homeTimeout, new GridBagConstraints(1, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		stopHomeTimeout = new JButton(getText("stopHomeTimeout.text"));
+		stopHomeTimeout.setName("clearTimeout");
+		stopHomeTimeout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.setTimeoutRunning(false);
+				if (timeoutTimer != null) {
+					timeoutTimer.cancel();
+//					ScoreboardModel.INSTANCE.setTimeout(60000);
+				}
+			}
+		});
+		homeTimeoutPanel.add(stopHomeTimeout, new GridBagConstraints(1, 2, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(homeTimeoutPanel);
+		
+		
+		JPanel timeoutPanel = new JPanel(new GridBagLayout());
+		startTimeout = new JButton(getText("startTimeout.text"));
+		startTimeout.setName("startTimeout");
+		startTimeout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				startTimeout(null, ScoreboardModel.INSTANCE.getGeneralTimeout());
+			}
+		});
+		timeoutPanel.add(startTimeout, new GridBagConstraints(0, 0, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		timeout = new JTextField();
+		timeout.setText(Integer.toString(ScoreboardModel.INSTANCE.getGeneralTimeout()));
+		timeout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.setGeneralTimeout(new Integer(timeout.getText()));
+			}
+		});
+		timeoutPanel.add(timeout, new GridBagConstraints(0, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		stopTimeout = new JButton(getText("stopTimeout.text"));
+		stopTimeout.setName("clearTimeout");
+		stopTimeout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.setTimeoutRunning(false);
+				if (timeoutTimer != null) {
+					timeoutTimer.cancel();
+					ScoreboardModel.INSTANCE.setGeneralTimeout(new Integer(timeout.getText()));
+				}
+			}
+		});
+		timeoutPanel.add(stopTimeout, new GridBagConstraints(0, 2, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(timeoutPanel);
+		
+		
+		
+		JPanel awayTimeoutPanel = new JPanel(new GridBagLayout());
+		awayTimeouts = new JTextField();
+		awayTimeouts.setText(Integer.toString(ScoreboardModel.INSTANCE.getAwayTeam().getTimouts()));
+		awayTimeouts.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.getAwayTeam().setTimouts(new Integer(awayTimeouts.getText()));
+			}
+		});
+		awayTimeoutPanel.add(awayTimeouts, new GridBagConstraints(2, 0, 1, 3, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		startAwayTimeout = new JButton(getText("startAwayTimeout.text"));
+		startAwayTimeout.setName("startAwayTimeout");
+		startAwayTimeout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				startTimeout(ScoreboardModel.INSTANCE.getAwayTeam(), ScoreboardModel.INSTANCE.getTimeout());
+			}
+		});
+		awayTimeoutPanel.add(startAwayTimeout, new GridBagConstraints(0, 0, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		awayTimeout = new JTextField();
+		awayTimeout.setText(Integer.toString(ScoreboardModel.INSTANCE.getTimeout()));
+		awayTimeout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.setTimeout(new Integer(awayTimeout.getText()));
+				homeTimeout.setText(awayTimeout.getText());
+			}
+		});
+		awayTimeoutPanel.add(awayTimeout, new GridBagConstraints(0, 1, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
+		stopAwayTimeout = new JButton(getText("stopTimeout.text"));
+		stopAwayTimeout.setName("clearTimeout");
+		stopAwayTimeout.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.setTimeoutRunning(false);
+				if (timeoutTimer != null) {
+					timeoutTimer.cancel();
+				}
+			}
+		});
+		awayTimeoutPanel.add(stopAwayTimeout, new GridBagConstraints(0, 2, 2, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(awayTimeoutPanel);
+		
+		
+		JPanel slidePanel = new JPanel(new GridBagLayout());
+		resumeSlidesButton = new JButton(getText("resumeSlides.text"));
+		resumeSlidesButton.setName("resumeSlides");
+		resumeSlidesButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				slideshow.start();
+			}
+		});
+		slidePanel.add(resumeSlidesButton, new GridBagConstraints(0, 0, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		
 		slideTime = new JTextField(20);
 		slideTime.setName("slideTime");
-		slideTime.setAction(context.getActionMap(this).get("setSlideTime"));
-		slideTime.setText(Integer.toString(model.getTimeout()));
-		add(slideTime);
+		slideTime.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ScoreboardModel.INSTANCE.setSlideTime(Integer.parseInt(slideTime.getText()));
+			}
+		});
+		slideTime.setText(Integer.toString(ScoreboardModel.INSTANCE.getSlideTime()));
+		slidePanel.add(slideTime, new GridBagConstraints(0, 1, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
 		
-		startAwayTimeout = new JButton();
-		startAwayTimeout.setName("startAwayTimeout");
-		startAwayTimeout.setAction(context.getActionMap(this).get("startTimeout"));
-		add(startAwayTimeout);
-
-		clearTimeout = new JButton();
-		clearTimeout.setName("clearTimeout");
-		clearTimeout.setAction(context.getActionMap(this).get("stopTimeout"));
-		add(clearTimeout);
-
-		resumeSlidesButton = new JButton();
-		resumeSlidesButton.setName("resumeSlides");
-		resumeSlidesButton.setAction(context.getActionMap(slideshow).get(
-				"start"));
-		add(resumeSlidesButton);
-
-		suspendSlidesButton = new JButton();
+		suspendSlidesButton = new JButton(getText("suspendSlides.text"));
 		suspendSlidesButton.setName("suspendSlides");
-		suspendSlidesButton.setAction(context.getActionMap(slideshow).get(
-				"stop"));
-		add(suspendSlidesButton);
-	}
-
-	@Action
-	public void setHomeTeam() {
-		Team team = model.getHomeTeam();
-		team.setName(homeTeam.getText());
-	}
-
-	@Action
-	public void setAwayTeam() {
-		Team team = model.getAwayTeam();
-		team.setName(awayTeam.getText());
-	}
-
-	@Action
-	public void reset() {
-		model.reset();
-	}
-
-	@Action
-	public void addPoint(ActionEvent ae) {
-		Team team = getTeam(ae);
-		team.addPoint();
+		suspendSlidesButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				slideshow.stop();
+			}
+		});
+		slidePanel.add(suspendSlidesButton, new GridBagConstraints(0, 2, 1, 1, 1, 1, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		add(slidePanel);
 		
-		if (team.isHomeTeam() && model.getPossesion() == Possesion.AWAY) {
-			model.switchPossession();
+		slideImage = new JPanel();
+		try {
+			slide = new JLabel();
+			slideImage.add(slide);
+			//slide.setIcon(new ImageIcon(slideshow.getCurrentSlide().getScaledInstance(slideImage.getWidth(), slideImage.getHeight(), Image.SCALE_FAST)));
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
-		if (!team.isHomeTeam() && model.getPossesion() == Possesion.HOME) {
-			model.switchPossession();
-		}
-
-		Team home = model.getHomeTeam();
-		Team away = model.getAwayTeam();
-
-		if (((home.getPoints() == 8 && away.getPoints() < 8) || (away.getPoints() == 8 && home.getPoints() < 8)) && (home.getSets() + away.getSets() <= 4) && !model.isFirstExtraTimeout()) {
-			model.setFirstExtraTimeout(true);
-			model.setTimeout(60000);
-			startTimeout(null);
-		}
-		if (((home.getPoints() == 16 && away.getPoints() < 16) || (away.getPoints() == 16 && home.getPoints() < 16)) && (home.getSets() + away.getSets() <= 4) && !model.isSecondExtraTimeout()) {
-			model.setSecondExtraTimeout(true);
-			model.setTimeout(60000);
-			startTimeout(null);
-		}
-		
-		if (((home.getPoints() == 25 && away.getPoints() <= 23) && (home.getSets() <= 2 && away.getSets() <= 2)) ||
-			((home.getPoints() >= 25 && Math.abs(home.getPoints() - away.getPoints()) >= 2) && (home.getSets() <= 2 && away.getSets() <= 2)) ||
-			((home.getPoints() == 15 && away.getPoints() <= 13) && (home.getSets() + away.getSets() == 4)) ||
-			((home.getPoints() >= 15 && Math.abs(home.getPoints() - away.getPoints()) >= 2) && (home.getSets() + away.getSets() == 4))) {
-			home.setPoints(0);
-			home.setSets(home.getSets() + 1);
-			away.setPoints(0);
-			model.setFirstExtraTimeout(false);
-			model.setSecondExtraTimeout(false);
-		}
-		
-		if (((away.getPoints() == 25 && home.getPoints() <= 23) && (away.getSets() <= 2 && home.getSets() <= 2)) ||
-			((away.getPoints() >= 25 && Math.abs(away.getPoints() - home.getPoints()) >= 2) && (away.getSets() <= 2 && home.getSets() <= 2)) ||
-			((away.getPoints() == 15 && home.getPoints() <= 13) && (away.getSets() + home.getSets() == 4)) ||
-			((away.getPoints() >= 15 && Math.abs(away.getPoints() - home.getPoints()) >= 2) && (away.getSets() + home.getSets() == 4))) {
-			away.setPoints(0);
-			away.setSets(away.getSets() + 1);
-			home.setPoints(0);
-			model.setFirstExtraTimeout(false);
-			model.setSecondExtraTimeout(false);
-		}
+		add(slideImage);
 	}
-
-	@Action
-	public void addSet(ActionEvent ae) {
-		Team team = getTeam(ae);
-		team.addSet();
-	}
-
-	@Action
-	public void makeNoise(ActionEvent ae) {
-		String id = ((JButton) ae.getSource()).getName();
-		if (id.toLowerCase().contains("beep")) {
-			NoiseMaker.beep();
-		} else {
-			NoiseMaker.horn();
-		}
-	}
-
-	@Action
-	public void removePoint(ActionEvent ae) {
-		Team team = getTeam(ae);
-		team.removePoint();
-	}
-
-	@Action
-	public void removeSet(ActionEvent ae) {
-		Team team = getTeam(ae);
-		team.removeSet();
-	}
-
-	@Action
-	public void clearPoints(ActionEvent ae) {
-		model.getHomeTeam().setPoints(0);
-		model.getAwayTeam().setPoints(0);
-	}
-
-	@Action
-	public void clearSets(ActionEvent ae) {
-		model.getHomeTeam().setSets(0);
-		model.getAwayTeam().setSets(0);
-	}
-
-	@Action
-	public void gameUp(ActionEvent ae) {
-		model.setGames(model.getGames() + 1);
-	}
-
-	@Action
-	public void gameDown(ActionEvent ae) {
-		if (model.getGames() > 1) {
-			model.setGames(model.getGames() - 1);
-		}
-	}
-
-	@Action
-	public void startTimeout(ActionEvent ae) {
-		if (ae != null) {
-			Team team = getTeam(ae);
+	
+	private void startTimeout(Team team, final int timeout) {
+		final ScoreboardModel model = ScoreboardModel.INSTANCE;
+		if (team != null) {
 			if (team.getTimouts() < 2) {
+				NoiseMaker.beep();
+				
 				team.setTimouts(team.getTimouts() + 1);
-			
+				model.setRunningTimeout(timeout);
 				model.setTimeoutRunning(true);
 				
 				timeoutTimer = new Timer();
@@ -343,16 +607,13 @@ public class ScoreboardControls extends JPanel {
 					@Override
 					public void run() {
 						EventQueue.invokeLater(new Runnable() {
-		
 							public void run() {
-								int timeout = model.getTimeout();
-								if (timeout > 100) {
-									model.setTimeout(timeout - 100);
+								if (model.getRunningTimeout() > 100) {
+									model.setRunningTimeout(model.getRunningTimeout() - 100);
 								} else {
 									timeoutTimer.cancel();
 									model.setTimeoutRunning(false);
 									NoiseMaker.beep();
-									model.resetTimeout();
 								}
 							}
 						});
@@ -360,6 +621,7 @@ public class ScoreboardControls extends JPanel {
 				}, 0, 100);
 			}
 		} else {
+			model.setRunningTimeout(timeout);
 			model.setTimeoutRunning(true);
 			
 			timeoutTimer = new Timer();
@@ -368,16 +630,13 @@ public class ScoreboardControls extends JPanel {
 				@Override
 				public void run() {
 					EventQueue.invokeLater(new Runnable() {
-	
 						public void run() {
-							int timeout = model.getTimeout();
-							if (timeout > 100) {
-								model.setTimeout(timeout - 100);
+							if (model.getRunningTimeout() > 100) {
+								model.setRunningTimeout(model.getRunningTimeout() - 100);
 							} else {
 								timeoutTimer.cancel();
 								model.setTimeoutRunning(false);
 								NoiseMaker.beep();
-								model.resetTimeout();
 							}
 						}
 					});
@@ -386,52 +645,30 @@ public class ScoreboardControls extends JPanel {
 		}
 	}
 
-	@Action
-	public void stopTimeout() {
-		model.setTimeoutRunning(false);
-//		if (timeoutTimer != null) {
-//			timeoutTimer.cancel();
-//			model.setTimeout(30000);
-//		}
-		model.getHomeTeam().setTimouts(0);
-		model.getAwayTeam().setTimouts(0);
-	}
-	
-	@Action
-	public void setTimeout() {
-		model.setTimeout(Integer.parseInt(timeout.getText()));
-	}
-	
-	@Action
-	public void setSlideTime() {
-		model.setSlideTime(Integer.parseInt(slideTime.getText()));
-	}
-	
-	@Action
-	public void setPoints(ActionEvent ae) {
-		if (ae != null) {
-			Team team = getTeam(ae);
-			team.setPoints(Integer.parseInt(points.getText()));
-		}
-	}
-	
-	@Action
-	public void setColor(ActionEvent ae) {
-		if (ae != null) {
-			Team team = getTeam(ae);
-			Color color = JColorChooser.showDialog(this, "Choose " + team.getName() + " color", team.getMainColor());
-		    if (color != null) {
-		    	team.setMainColor(color);
-		    }
-		}
-	}
-
-	private Team getTeam(ActionEvent ae) {
-		String id = ((JButton) ae.getSource()).getName();
-		if (id.toLowerCase().contains("home")) {
-			return model.getHomeTeam();
+	public void propertyChange(PropertyChangeEvent evt) {
+		homeMainColor.setForeground(ScoreboardModel.INSTANCE.getHomeTeam().getMainColor());
+		homeSubColor.setForeground(ScoreboardModel.INSTANCE.getHomeTeam().getSubColor());
+		homePoints.setText(Integer.toString(ScoreboardModel.INSTANCE.getHomeTeam().getPoints()));
+		homeSets.setText(Integer.toString(ScoreboardModel.INSTANCE.getHomeTeam().getSets()));
+		homeTimeouts.setText(Integer.toString(ScoreboardModel.INSTANCE.getHomeTeam().getTimouts()));
+		awayMainColor.setForeground(ScoreboardModel.INSTANCE.getAwayTeam().getMainColor());
+		awaySubColor.setForeground(ScoreboardModel.INSTANCE.getAwayTeam().getSubColor());
+		awayPoints.setText(Integer.toString(ScoreboardModel.INSTANCE.getAwayTeam().getPoints()));
+		awaySets.setText(Integer.toString(ScoreboardModel.INSTANCE.getAwayTeam().getSets()));
+		awayTimeouts.setText(Integer.toString(ScoreboardModel.INSTANCE.getAwayTeam().getTimouts()));
+		if (ScoreboardModel.INSTANCE.getPossesion() == Possesion.HOME) {
+			homeTeam.setBackground(Color.RED);
+			awayTeam.setBackground(Color.WHITE);
 		} else {
-			return model.getAwayTeam();
+			homeTeam.setBackground(Color.WHITE);
+			awayTeam.setBackground(Color.RED);
+		}
+		games.setText(Integer.toString(ScoreboardModel.INSTANCE.getGames()));
+		try {
+			slide.setIcon(new ImageIcon(slideshow.getCurrentSlide().getScaledInstance(slideImage.getWidth(), slideImage.getHeight(), Image.SCALE_FAST)));
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 }
