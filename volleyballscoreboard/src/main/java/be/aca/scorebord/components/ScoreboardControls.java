@@ -19,13 +19,13 @@ import java.util.TimerTask;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JColorChooser;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import be.aca.scorebord.application.ScoreBoard;
 import be.aca.scorebord.domain.Possesion;
 import be.aca.scorebord.domain.ScoreboardModel;
 import be.aca.scorebord.domain.Team;
@@ -44,6 +44,8 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 	private JTextField homeTeam, awayTeam, points, slideTime,
 			homePoints, awayPoints, homeSets, awaySets, games, 
 			homeTimeouts, awayTimeouts, homeTimeout, awayTimeout, timeout;
+	
+	private JCheckBox juniors;
 	
 	private JLabel slide;
 	private JPanel slideImage;
@@ -104,14 +106,16 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 			Team away = model.getAwayTeam();
 
 			if (((home.getPoints() == 8 && away.getPoints() < 8) || (away.getPoints() == 8 && home.getPoints() < 8)) && (home.getSets() + away.getSets() <= 4) && !model.isFirstExtraTimeout()) {
-				model.setFirstExtraTimeout(true);
-//				model.setTimeout(60000);
-				startTimeout(null, 60000);
+				if (!juniors.getModel().isSelected()) {
+					model.setFirstExtraTimeout(true);
+					startTimeout(null, 60000);
+				}
 			}
 			if (((home.getPoints() == 16 && away.getPoints() < 16) || (away.getPoints() == 16 && home.getPoints() < 16)) && (home.getSets() + away.getSets() <= 4) && !model.isSecondExtraTimeout()) {
-				model.setSecondExtraTimeout(true);
-//				model.setTimeout(60000);
-				startTimeout(null, 60000);
+				if (!juniors.getModel().isSelected()) {
+					model.setSecondExtraTimeout(true);
+					startTimeout(null, 60000);
+				}
 			}
 			
 			if (((home.getPoints() == 25 && away.getPoints() <= 23) && (home.getSets() <= 2 && away.getSets() <= 2)) ||
@@ -123,6 +127,8 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 				away.setPoints(0);
 				model.setFirstExtraTimeout(false);
 				model.setSecondExtraTimeout(false);
+				home.setTimouts(0);
+				away.setTimouts(0);
 			}
 			
 			if (((away.getPoints() == 25 && home.getPoints() <= 23) && (away.getSets() <= 2 && home.getSets() <= 2)) ||
@@ -134,9 +140,10 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 				home.setPoints(0);
 				model.setFirstExtraTimeout(false);
 				model.setSecondExtraTimeout(false);
+				home.setTimouts(0);
+				away.setTimouts(0);
 			}
 		}
-		
 	}
 	
 	private void buildDialog() {
@@ -464,7 +471,6 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 				ScoreboardModel.INSTANCE.setTimeoutRunning(false);
 				if (timeoutTimer != null) {
 					timeoutTimer.cancel();
-//					ScoreboardModel.INSTANCE.setTimeout(60000);
 				}
 			}
 		});
@@ -589,6 +595,15 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 			e.printStackTrace();
 		}
 		add(slideImage);
+		
+		juniors = new JCheckBox(getText("juniors.text"));
+		juniors.setName("juniors");
+		juniors.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				
+			}
+		});
+		add(juniors);
 	}
 	
 	private void startTimeout(Team team, final int timeout) {
