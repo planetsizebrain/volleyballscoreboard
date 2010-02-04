@@ -3,7 +3,7 @@
   <groupId>fimez</groupId>
   <artifactId>ScoreBoard</artifactId>
   <name>ScoreBoard</name>
-  <version>0.8-SNAPSHOT</version>
+  <version>0.8.1</version>
   <build>
   	<plugins>
   		<plugin>
