@@ -32,16 +32,18 @@ import be.aca.scorebord.domain.Team;
 
 public class ScoreboardControls extends JDialog implements PropertyChangeListener {
 
+	private static final long serialVersionUID = 1542641990398758757L;
+
 	private static final String RESOURCE_BUNDLE = "/be/aca/scorebord/application/resources/VolleyballScoreboard.properties";
-	private JButton homeupButton, homednButton, homesetButton, awayupButton,
-			awaydnButton, guestsetButton, clearPoints, startHomeTimeout,
+	private JButton homeupButton, homednButton, awayupButton,
+			awaydnButton, clearPoints, startHomeTimeout,
 			possesionButton, awaySetDown, gameUp, gameDown, homeSetUp, horn,
 			awaySetUp, beep, clearSets, homeSetDown, stopHomeTimeout, reset,
 			suspendSlidesButton, resumeSlidesButton, startAwayTimeout,
 			homeMainColor, homeSubColor, awayMainColor, awaySubColor, stopAwayTimeout,
 			startTimeout, stopTimeout;
 
-	private JTextField homeTeam, awayTeam, points, slideTime,
+	private JTextField homeTeam, awayTeam, slideTime,
 			homePoints, awayPoints, homeSets, awaySets, games, 
 			homeTimeouts, awayTimeouts, homeTimeout, awayTimeout, timeout;
 	
@@ -94,7 +96,7 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 		public void actionPerformed(ActionEvent e) {
 			team.addPoint();
 			
-			ScoreboardModel model = ScoreboardModel.INSTANCE;
+			final ScoreboardModel model = ScoreboardModel.INSTANCE;
 			if (team.isHomeTeam() && model.getPossesion() == Possesion.AWAY) {
 				model.switchPossession();
 			}
@@ -102,8 +104,8 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 				model.switchPossession();
 			}
 
-			Team home = model.getHomeTeam();
-			Team away = model.getAwayTeam();
+			final Team home = model.getHomeTeam();
+			final Team away = model.getAwayTeam();
 
 			if (((home.getPoints() == 8 && away.getPoints() < 8) || (away.getPoints() == 8 && home.getPoints() < 8)) && (home.getSets() + away.getSets() <= 4) && !model.isFirstExtraTimeout()) {
 				if (!juniors.getModel().isSelected()) {
@@ -122,26 +124,50 @@ public class ScoreboardControls extends JDialog implements PropertyChangeListene
 				((home.getPoints() >= 25 && Math.abs(home.getPoints() - away.getPoints()) >= 2) && (home.getSets() <= 2 && away.getSets() <= 2)) ||
 				((home.getPoints() == 15 && away.getPoints() <= 13) && (home.getSets() + away.getSets() == 4)) ||
 				((home.getPoints() >= 15 && Math.abs(home.getPoints() - away.getPoints()) >= 2) && (home.getSets() + away.getSets() == 4))) {
-				home.setPoints(0);
-				home.setSets(home.getSets() + 1);
-				away.setPoints(0);
-				model.setFirstExtraTimeout(false);
-				model.setSecondExtraTimeout(false);
-				home.setTimouts(0);
-				away.setTimouts(0);
+				final Timer endSetTimer = new Timer();
+				endSetTimer.schedule(new TimerTask() {
+		
+					@Override
+					public void run() {
+						EventQueue.invokeLater(new Runnable() {
+							public void run() {
+								home.setPoints(0);
+								home.setSets(home.getSets() + 1);
+								away.setPoints(0);
+								model.setFirstExtraTimeout(false);
+								model.setSecondExtraTimeout(false);
+								home.setTimouts(0);
+								away.setTimouts(0);
+								endSetTimer.cancel();
+							}
+						});
+					}
+				}, model.getAfterSetTimeout());
 			}
 			
 			if (((away.getPoints() == 25 && home.getPoints() <= 23) && (away.getSets() <= 2 && home.getSets() <= 2)) ||
 				((away.getPoints() >= 25 && Math.abs(away.getPoints() - home.getPoints()) >= 2) && (away.getSets() <= 2 && home.getSets() <= 2)) ||
 				((away.getPoints() == 15 && home.getPoints() <= 13) && (away.getSets() + home.getSets() == 4)) ||
 				((away.getPoints() >= 15 && Math.abs(away.getPoints() - home.getPoints()) >= 2) && (away.getSets() + home.getSets() == 4))) {
-				away.setPoints(0);
-				away.setSets(away.getSets() + 1);
-				home.setPoints(0);
-				model.setFirstExtraTimeout(false);
-				model.setSecondExtraTimeout(false);
-				home.setTimouts(0);
-				away.setTimouts(0);
+				final Timer endSetTimer = new Timer();
+				endSetTimer.schedule(new TimerTask() {
+		
+					@Override
+					public void run() {
+						EventQueue.invokeLater(new Runnable() {
+							public void run() {
+								away.setPoints(0);
+								away.setSets(away.getSets() + 1);
+								home.setPoints(0);
+								model.setFirstExtraTimeout(false);
+								model.setSecondExtraTimeout(false);
+								home.setTimouts(0);
+								away.setTimouts(0);
+								endSetTimer.cancel();
+							}
+						});
+					}
+				}, model.getAfterSetTimeout());
 			}
 		}
 	}

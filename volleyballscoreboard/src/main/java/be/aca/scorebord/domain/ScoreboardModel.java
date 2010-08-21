@@ -42,6 +42,7 @@ public enum ScoreboardModel {
 	private boolean timeoutRunning = false;
 	private boolean firstExtraTimeout = false;
 	private boolean secondExtraTimeout = false;
+	private int afterSetTimeout;
 	
 	private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
@@ -58,7 +59,8 @@ public enum ScoreboardModel {
 		awayTeam = new Team(properties.getProperty("awayteam", "GUEST"), main, sub, false);
 		timeout = Integer.parseInt(properties.getProperty("timeout", "30000"));
 		slideTime = Integer.parseInt(properties.getProperty("slideTime", "10000"));
-		generalTimeout = Integer.parseInt(properties.getProperty("generalTimeout", "30000"));;
+		generalTimeout = Integer.parseInt(properties.getProperty("generalTimeout", "30000"));
+		afterSetTimeout = Integer.parseInt(properties.getProperty("afterSetTimeout", "10000"));
 	}
 	
 	public Possesion getPossesion() {
@@ -187,5 +189,9 @@ public enum ScoreboardModel {
 
 	public void setSecondExtraTimeout(boolean secondExtraTimeout) {
 		this.secondExtraTimeout = secondExtraTimeout;
+	}
+	
+	public int getAfterSetTimeout() {
+		return afterSetTimeout;
 	}
 }
