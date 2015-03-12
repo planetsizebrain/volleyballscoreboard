@@ -1,0 +1,1 @@
+Simple Java application that is able to show a volleyball scoreboard on a beamer and has a control panel to control the data the scoreboard.
